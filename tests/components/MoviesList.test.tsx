@@ -1,41 +1,61 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import MoviesList from '../../src/components/MoviesList';
 import { Movie } from '../../src/entities';
-import { vi } from 'vitest';
 import { getDocs } from 'firebase/firestore';
+import { Mock } from 'vitest';
+import { vi } from 'vitest';
+import { ThemeProvider } from "@material-tailwind/react";
 
 
 // Mock Firebase Firestore
 vi.mock('firebase/firestore', () => ({
-    getFirestore: vi.fn(),
-    collection: vi.fn(),
-    getDocs: vi.fn(),
+  getFirestore: vi.fn(),
+  collection: vi.fn(),
+  getDocs: vi.fn(),
 }));
+
+vi.mock('@/components/ui/carousel', () => ({
+  Carousel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CarouselContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CarouselItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CarouselNext: () => <button>Next</button>,
+  CarouselPrevious: () => <button>Previous</button>,
+}));
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  return render(<ThemeProvider>{ui}</ThemeProvider>);
+};
 
 describe('MoviesList', () => {
   it('should render loading state initially', () => {
-    render(<MoviesList />);
+    
+    act(() => {
+      render(<MoviesList />);
+    });
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
 
-  /* it('should render no movies if there are no movies in the database', async () => {
+  it('should render no movies if there are no movies in the database', async () => {
     
-    (getDocs as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (getDocs as Mock).mockResolvedValue({
       docs: [],
     });
-
-    render(<MoviesList />);
-
-    
+ 
+    await act(async () => {
+      render(<MoviesList />);
+    });
+ 
     await waitFor(() => {
-        expect(screen.getByRole('paragraph', { name: /no movies/i })).toBeInTheDocument();
-      });
-  }); */
+      expect(screen.getByText(/no trending movies available/i)).toBeInTheDocument();
+      expect(screen.getByText(/no recommended movies available/i)).toBeInTheDocument(); 
+    });
+  });
 
   it('should render trending and recommended movies', async () => {
     const mockMovies: Movie[] = [
       {
-        title: 'Inception',
+        id: '1',
+        title: 'The Godfather',
         year: 2010,
         rating: 'PG-13',
         actors: ['Leonardo DiCaprio', 'Joseph Gordon-Levitt', 'Ellen Page'],
@@ -46,6 +66,7 @@ describe('MoviesList', () => {
         recommended: true,
       },
       {
+        id: '2',
         title: 'The Dark Knight',
         year: 2008,
         rating: 'PG-13',
@@ -58,20 +79,20 @@ describe('MoviesList', () => {
       },
     ];
 
-    // Mock getDocs to return a list of movies
-    (getDocs as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (getDocs as Mock).mockResolvedValue({
       docs: mockMovies.map((movie) => ({
         data: () => movie,
       })),
     });
 
-    render(<MoviesList />);
+    renderWithProviders(<MoviesList />);
 
-    
-    await waitFor(() => {
+    await(() => {
       mockMovies.forEach((movie) => {
         expect(screen.getByAltText(movie.title)).toBeInTheDocument();
       });
     });
   });
 });
+
+ 
